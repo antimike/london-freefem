@@ -128,28 +128,28 @@ VvNedelec [JNx, JNy, JNz] = inSC * Curl3d(BN); 	// Current density (only defined
 Sv0 HNxx = 0, HNxy = 0, HNxz = 1;
 
 //problem MeissnerNedelec([ANx, ANy, ANz, ThetaN], [WNx, WNy, WNz, wN], solver=CG) =
-varf M([ANx, ANy, ANz, ThetaN], [WNx, WNy, WNz, wN]) = 
-	int3d(TvTotal)(
-		Curl3d(WN)'*Curl3d(AN) - Div3d(WN)*Div3d(AN)
-		+ penaltyConstant*Div3d(WN)*Div3d(AN)
-		+ inSC*inverseLambda^2*[WNx, WNy, WNz]'*[ANx, ANy, ANz]
-		- inSC*inverseLambda*[WNx, WNy, WNz]'*Grad3d(ThetaN)
-	)
-	+ int3d(TvTotal)(
-			-1*inSC*inverseLambda*Grad3d(wN)'*[ANx, ANy, ANz]
-			+ inSC*Grad3d(wN)'*Grad3d(ThetaN)
-	);
+//varf M([ANx, ANy, ANz, ThetaN], [WNx, WNy, WNz, wN]) = 
+	//int3d(TvTotal)(
+		//Curl3d(WN)'*Curl3d(AN) - Div3d(WN)*Div3d(AN)
+		//+ penaltyConstant*Div3d(WN)*Div3d(AN)
+		//+ inSC*inverseLambda^2*[WNx, WNy, WNz]'*[ANx, ANy, ANz]
+		//- inSC*inverseLambda*[WNx, WNy, WNz]'*Grad3d(ThetaN)
+	//)
+	//+ int3d(TvTotal)(
+			//-1*inSC*inverseLambda*Grad3d(wN)'*[ANx, ANy, ANz]
+			//+ inSC*Grad3d(wN)'*Grad3d(ThetaN)
+	//);
 
-varf A([ANx, ANy, ANz, ThetaN], [WNx, WNy, WNz, wN]) = 
-	int2d(TsTotal, EXTERNAL)(
-			[WNx, WNy, WNz]'*parallelBdyComponents(Hx)
-	);
+//varf A([ANx, ANy, ANz, ThetaN], [WNx, WNy, WNz, wN]) = 
+	//int2d(TsTotal, EXTERNAL)(
+			//[WNx, WNy, WNz]'*parallelBdyComponents(Hx)
+	//);
 
-matrix MM = M(VvNedelecPlus, VvNedelecPlus);
-Sv1 AA; AA[] = A(0, VvNedelecPlus);
+//matrix MM = M(VvNedelecPlus, VvNedelecPlus);
+//Sv1 AA; AA[] = A(0, VvNedelecPlus);
 
-set(MM, solver=CG);
-[ANx, ANy, ANz, ThetaN][] = MM^-1*AA[];
+//set(MM, solver=CG);
+//[ANx[], ANy[], ANz[], ThetaN[]] = MM^-1*AA[];
 
 
 	
