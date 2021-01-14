@@ -1,0 +1,10 @@
+
+int FRONT=1, RIGHT=2, BACK=3, LEFT=4, BOTTOM=5, TOP=6;
+int EXTERNAL=100, INTERNAL=110;
+real boxLength = 50;
+int nx=25, ny=25, nz=25;
+real slabLength = boxLength/scaleFactor;
+real slabHeight = slabLength/aspectRatio;
+int SLAB = 10;	// This was intended as a "multiplier"---currently not used
+int SPACE = 30;
+int SC = 301;		// This is the actual SC region ID
