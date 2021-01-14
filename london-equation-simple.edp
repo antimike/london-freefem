@@ -10,106 +10,57 @@ include "/home/user/Source/freefem_matlab_octave_plot-public/release-v2.0/demos/
 include "MeshSurface.idp"
 
 
-// Parameters
+// PARAMETERS
+
 //real Mu0 = 4.*pi*1.e-7;	// Vacuum magnetic permeability (SI)
 //real Mu0 = 4*pi;
 real B0 = 100; // External field strength
 real fluxQuantum = 20.7;	// Stuart units: Microns + Gauss
 
-// Geometry
+// GEOMETRY
 
-// TODO: Construct 3D boxes using SurfaceHex command (from MeshSurface.idp)
-
-// BOUNDING BOX
+// Bounding box
 int FRONT=1, RIGHT=2, BACK=3, LEFT=4, BOTTOM=5, TOP=6;
-int EXTERNAL=100;
-int INTERNAL=110;
+int EXTERNAL=100, INTERNAL=110;
 real boxLength = 50;
 int nx=25, ny=25, nz=25;
 
-// Alternative, simpler construction
-meshS BBox = SurfaceHex([nx, ny, nz],
-	[[-boxLength/2, boxLength/2], [-boxLength/2, boxLength/2], [-boxLength/2, boxLength/2]],
-	[[LEFT, RIGHT], [FRONT, BACK], [BOTTOM, TOP]],
-	orient=1);
+int[int] BoxN = [nx, ny, nz];
+macro Interval [-boxLength/2, boxLength/2]//EOM
+real [int, int] BoxBounds = [Interval, Interval, Interval];
+int [int, int] BoxLabels = [[LEFT, RIGHT], [FRONT, BACK], [BOTTOM, TOP]];
 
+meshS BBox = SurfaceHex(BoxN, BoxBounds, BoxLabels, 1);
 
+medit("Bounding box", BBox);
 
-// Naming conventions: "T" --> "Triangulation," "v" --> "volume" (i.e., 3D), "s" --> "surface" (2D)
-//mesh Ts02D = square(nx, ny, SquareParameterization(-boxLength/2., boxLength/2., -boxLength/2., boxLength/2.));
-mesh Ts02D = square(nx, ny, 
-	SquareParameterization(
-		-boxLength/2, boxLength/2, 
-		-boxLength/2, boxLength/2
-	)
-);
-int[int] lup = [0, EXTERNAL], ldown = [0, EXTERNAL], 
-	lside = [0, EXTERNAL, 0, EXTERNAL, 0, EXTERNAL, 0, EXTERNAL];
-mesh3 Tv0 = buildlayers(Ts02D, nz, zbound=[-boxLength/2, boxLength/2], labelmid = lside, labelup = lup, labeldown = ldown);
-Tv0 = buildBdMesh(Tv0);
-meshS Ts0 = Tv0.Gamma;
-
-medit("Bounding box", Ts0);
-
-// SUPERCONDUCTING SLAB
+// Slab (simpler construction)
 real scaleFactor = 10;
 real aspectRatio = 10;
-mesh TsSC2D = square(5*nx/scaleFactor, 5*ny/scaleFactor,   	// The "magic number" 5 was chosen
-	SquareParameterization(                                  	// to make the mesh relatively more dense on the
-		-boxLength/(2*scaleFactor), boxLength/(2*scaleFactor), 	// SC boundary than on the spatial boundary
-		-boxLength/(2*scaleFactor), boxLength/(2*scaleFactor)
-	)
-);
-int[int] SCup = [0, INTERNAL], SCdown = [0, INTERNAL],
-	SCside = [0, INTERNAL, 0, INTERNAL, 0, INTERNAL, 0, INTERNAL];
-mesh3 TvSC = buildlayers(TsSC2D, 5*nz/(scaleFactor*aspectRatio), 
-	zbound=[-boxLength/(2*scaleFactor*aspectRatio), boxLength/(2*scaleFactor*aspectRatio)],
-	labelmid = SCside, labelup = SCup, labeldown = SCdown);
-TvSC = buildBdMesh(TvSC);
-meshS TsSC = TvSC.Gamma;
-
-medit("SC mesh (no hole)", TvSC);
-
-// Alternative construction:
 real slabLength = boxLength/scaleFactor;
 real slabHeight = slabLength/aspectRatio;
 int SLAB = 10;
 int nRatio = 5;
 
-meshS SCbdy = SurfaceHex([nx*nRatio/scaleFactor, ny*nRatio/scaleFactor, nz*nRatio/scaleFactor],
-	[[-slabLength/2, slabLength/2], [-slabLength/2, slabLength/2], [-slabHeight/2, slabHeight/2]],
-	[[SLAB*LEFT, SLAB*RIGHT], [SLAB*FRONT, SLAB*BACK], [SLAB*BOTTOM, SLAB*TOP]],
-	orient=-1);
+int[int] SlabN = (nRatio/scaleFactor)*[nx, ny, (1/aspectRatio)*nz];
 
-// SLAB WITH HOLE
-//int holeBorder = 201;
-//real holeRatio = 0.5;
-//real holeRadius = boxLength/(2*scaleFactor*holeRatio);
-////TsSC2D = buildBdMesh(TsSC2D);
-//meshS TsSC1D = TsSC2D.Gamma;		// Border of 2D mesh extruded to form slab without hole
-//border hole(t = 0, 2*pi) {x = holeRadius*cos(t); y = holeRadius*sin(t); label = holeBorder;}
-//mesh TsSChole2D = buildmesh(TsSC1D(5*2*(nx + ny)/scaleFactor) - hole(5*2*(nx + ny)/scaleFactor));
-//mesh3 TvSChole = buildlayers(TsSChole2D, 5*nz/(scaleFactor*aspectRatio), 
-	//zbound=[-boxLength/(2*scaleFactor*aspectRatio), boxLength/(2*scaleFactor*aspectRatio)],
-	//labelmid = SCside, labelup = SCup, labeldown = SCdown);		// TODO: Figure out how to label hole boundary
-//TvSChole = buildBdMesh(TvSChole);
-//meshS TsSChole = TvSChole.Gamma;
+real [int, int] SlabBounds = (1/scaleFactor)*[Interval, Interval, (1/aspectRatio)*Interval];
+int [int, int] SlabLabels = [[SLAB, SLAB], [SLAB, SLAB], [SLAB, SLAB]];
 
-//plot(TvSChole, wait=true);
+meshS SlabBdy = SurfaceHex(SlabN, SlabBounds, SlabLabels, -1);
+
+medit("SC mesh", SlabBdy);
 
 // COMBINED MESH
-meshS TsTotal = Ts0 + TsSC;
 int SPACE = 30;
 int SC = 301;
 real maxvolSpace = boxLength^3/(nx*ny*nz);
-real maxvolSC = maxvolSpace/(scaleFactor^3*aspectRatio*nRatio^3);
-real[int] regionsPrime = [0, 0, slabHeight*1.5, SPACE, maxvolSpace, 0, 0, 0, SC, maxvolSC];
+real maxvolSlab = maxvolSpace/(scaleFactor^3*aspectRatio*nRatio^3);
+real[int] regions = [0, 0, slabHeight*1.5, SPACE, maxvolSpace, 0, 0, 0, SC, maxvolSlab];
 
+meshS TsTotal = BBox + SlabBdy;
 mesh3 TvTotal = tetg(TsTotal, switch = "pqaAAYYQ", nbofregions = 2, regionlist = regions);
-
-// Alternative
-mesh3 TvTotalPrime = tetg(BBox + SCBdy, switch = "pqaAAYYQ", nbofregions = 2, regionlist = regions);
-
+TvTotal = checkmesh(TvTotal);
 
 medit("Full triangulation", TvTotal);
 
@@ -122,14 +73,15 @@ fespace Vv2(TvTotal, [P2, P2, P2]);
 // PROBLEM CONSTANTS
 real penaltyConstant = 1.;
 real penetrationFraction = .1;
-real penetrationDepth = penetrationFraction*boxLength/scaleFactor;
+real penetrationDepth = penetrationFraction*slabLength;
 real inverseLambda = 1/penetrationDepth;
 real JsPrefactor = 1/(Mu0*penetrationDepth^2);
-real AqPrefactor = fluxQuantum/(2*pi*rho);
 
 // MESH FUNCTIONS
-Sv0 inSC = region == SC;
-Sv1 Theta;                            	// Scalar phase from Cordier 1 (rescaled; cf. eq. (60))
+// NOTE: Naming conventions on vector components (i.e., vector `Foo` has components `[Foox, Fooy, Fooz]`) 
+// are necessary for vector macros to work
+Sv0 inSC = region == SC;             	// Characteristic function of the SC
+Sv1 Theta;                           	// Scalar phase from Cordier 1 (rescaled; cf. eq. (60))
 Vv2 [Ax, Ay, Az] = [0, 0, 0];        	// Vector potential
 Vv2 [Wx, Wy, Wz];                    	// Vector basis functions
 Sv1 w;                               	// Scalar basis functions
@@ -146,11 +98,11 @@ problem meissner([Ax, Ay, Az, Theta], [Wx, Wy, Wz, w]) =
 		- inSC*inverseLambda*[Wx, Wy, Wz]'*Grad3d(Theta)
 	)
 	+ int3d(TvTotal)(
-	    -1*inSC*inverseLambda*Grad3d(w)'*[Ax, Ay, Az]
+			-1*inSC*inverseLambda*Grad3d(w)'*[Ax, Ay, Az]
 			+ inSC*Grad3d(w)'*Grad3d(Theta)
 	)
 	+ int2d(TsTotal, EXTERNAL)(
-	    [Wx, Wy, Wz]'*parallelBdyComponents(Hx)
+			[Wx, Wy, Wz]'*parallelBdyComponents(Hx)
 	)
 	+ on()
 
