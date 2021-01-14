@@ -9,19 +9,6 @@ include "/home/user/Source/FreeFEM/freefem-macros/vector-analysis.idp"
 include "/home/user/Source/freefem_matlab_octave_plot-public/release-v2.0/demos/ffmatlib.idp"
 include "MeshSurface.idp"
 
-// Macros
-//macro Curl3d(Ax, Ay, Az) [dy(Az)-dz(Ay), dz(Ax)-dx(Az), dx(Ay)-dy(Ax)] //
-//macro Div3d(Ax, Ay, Az) (dx(Ax) + dy(Ay) + dz(Az)) //
-//macro Grad(F) ([dx(F), dy(F), dz(F)]) //
-//macro dn(f) (N.x*dx(f) + N.y*dy(f) + N.z*dz(f)) //
-//macro SquareParameterization(a, b, c, d) [a + (b-a)*x, c + (d-c)*y] //
-
-//func r = sqrt(x^2 + y^2 + z^2);
-//func rho = sqrt(x^2 + y^2);
-////func phiHat = [-y/rho, x/rho, 0];
-//real rho0 = 1e-3;
-//real rhoApprox = rho >= rho0 ? rho : rho0;
-//func phiHat = [-y/rhoApprox, x/rhoApprox, 0];
 
 // Parameters
 //real Mu0 = 4.*pi*1.e-7;	// Vacuum magnetic permeability (SI)
@@ -31,6 +18,8 @@ real fluxQuantum = 20.7;	// Stuart units: Microns + Gauss
 
 // Geometry
 
+// TODO: Construct 3D boxes using SurfaceHex command (from MeshSurface.idp)
+
 // BOUNDING BOX
 int FRONT=1, RIGHT=2, BACK=3, LEFT=4, BOTTOM=5, TOP=6;
 int EXTERNAL=100;
@@ -38,10 +27,13 @@ int INTERNAL=110;
 real boxLength = 50;
 int nx=25, ny=25, nz=25;
 
-// Mesh-generation schematic:
-// mesh (2D) --> buildLayers (extrude) --> buildBdMesh (boundary mesh) 
-// --> mesh.Gamma (isolate boundaries and glue together, if necessary)
-// tetg(mesh1.Gamma + mesh2.Gamma + ...) (fill shell assembled in previous step with tetragonal cells)
+// Alternative, simpler construction
+meshS BBox = SurfaceHex([nx, ny, nz],
+	[[-boxLength/2, boxLength/2], [-boxLength/2, boxLength/2], [-boxLength/2, boxLength/2]],
+	[[LEFT, RIGHT], [FRONT, BACK], [BOTTOM, TOP]],
+	orient=1);
+
+
 
 // Naming conventions: "T" --> "Triangulation," "v" --> "volume" (i.e., 3D), "s" --> "surface" (2D)
 //mesh Ts02D = square(nx, ny, SquareParameterization(-boxLength/2., boxLength/2., -boxLength/2., boxLength/2.));
@@ -57,8 +49,6 @@ mesh3 Tv0 = buildlayers(Ts02D, nz, zbound=[-boxLength/2, boxLength/2], labelmid 
 Tv0 = buildBdMesh(Tv0);
 meshS Ts0 = Tv0.Gamma;
 
-//plot(Ts02D, wait=true);		// This is more annoying than helpful
-//plot(Ts0, wait=true);		// Evidently not supported for 3D meshes...
 medit("Bounding box", Ts0);
 
 // SUPERCONDUCTING SLAB
@@ -78,8 +68,18 @@ mesh3 TvSC = buildlayers(TsSC2D, 5*nz/(scaleFactor*aspectRatio),
 TvSC = buildBdMesh(TvSC);
 meshS TsSC = TvSC.Gamma;
 
-//plot(TvSC, wait=true);		// For some reason this isn't supported
 medit("SC mesh (no hole)", TvSC);
+
+// Alternative construction:
+real slabLength = boxLength/scaleFactor;
+real slabHeight = slabLength/aspectRatio;
+int SLAB = 10;
+int nRatio = 5;
+
+meshS SCbdy = SurfaceHex([nx*nRatio/scaleFactor, ny*nRatio/scaleFactor, nz*nRatio/scaleFactor],
+	[[-slabLength/2, slabLength/2], [-slabLength/2, slabLength/2], [-slabHeight/2, slabHeight/2]],
+	[[SLAB*LEFT, SLAB*RIGHT], [SLAB*FRONT, SLAB*BACK], [SLAB*BOTTOM, SLAB*TOP]],
+	orient=-1);
 
 // SLAB WITH HOLE
 //int holeBorder = 201;
@@ -99,12 +99,17 @@ medit("SC mesh (no hole)", TvSC);
 
 // COMBINED MESH
 meshS TsTotal = Ts0 + TsSC;
-int space = 300;
+int SPACE = 30;
 int SC = 301;
-real maxvolSpace = boxLength*boxLength*boxLength/(nx*ny*nz);
-real maxvolSC = maxvolSpace/(scaleFactor*scaleFactor*scaleFactor*aspectRatio*5*5*5);
-real[int] regions = [0, 0, boxLength*1.5/scaleFactor, space, maxvolSpace, 0, 0, 0, SC, maxvolSC];
+real maxvolSpace = boxLength^3/(nx*ny*nz);
+real maxvolSC = maxvolSpace/(scaleFactor^3*aspectRatio*nRatio^3);
+real[int] regionsPrime = [0, 0, slabHeight*1.5, SPACE, maxvolSpace, 0, 0, 0, SC, maxvolSC];
+
 mesh3 TvTotal = tetg(TsTotal, switch = "pqaAAYYQ", nbofregions = 2, regionlist = regions);
+
+// Alternative
+mesh3 TvTotalPrime = tetg(BBox + SCBdy, switch = "pqaAAYYQ", nbofregions = 2, regionlist = regions);
+
 
 medit("Full triangulation", TvTotal);
 
@@ -138,14 +143,15 @@ problem meissner([Ax, Ay, Az, Theta], [Wx, Wy, Wz, w]) =
 		Curl3d(W)'*Curl3d(A) - Div3d(W)*Div3d(A)
 		+ penaltyConstant*Div3d(W)*Div3d(A)
 		+ inSC*inverseLambda^2*[Wx, Wy, Wz]'*[Ax, Ay, Az]
-		- inSC*inverseLambda*[Wx, Wy, Wz]'*[dx(Theta), dy(Theta), dz(Theta)]
+		- inSC*inverseLambda*[Wx, Wy, Wz]'*Grad3d(Theta)
 	)
 	+ int3d(TvTotal)(
-	    -inverseLambda*Grad3d(w)'*[Ax, Ay, Az]
-			+ Grad3d(w)'*Grad3d(Theta)
+	    -1*inSC*inverseLambda*Grad3d(w)'*[Ax, Ay, Az]
+			+ inSC*Grad3d(w)'*Grad3d(Theta)
 	)
 	+ int2d(TsTotal, EXTERNAL)(
-	    [Wx, Wy, Wz]'*parallelBdyComponents(B)
-	);
+	    [Wx, Wy, Wz]'*parallelBdyComponents(Hx)
+	)
+	+ on()
 
 meissner;
