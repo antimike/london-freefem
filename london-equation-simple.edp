@@ -109,12 +109,13 @@ problem meissner([Ax, Ay, Az, Theta], [Wx, Wy, Wz, w], solver=CG) =
 			-1*inSC*inverseLambda*Grad3d(w)'*[Ax, Ay, Az]
 			+ inSC*Grad3d(w)'*Grad3d(Theta)
 	)
-	+ int2d(TsTotal, EXTERNAL)(
-			[Wx, Wy, Wz]'*parallelBdyComponents(Hx)
-	)
-	+ on(TOP, BOTTOM, Az = 0)
-	+ on(LEFT, RIGHT, Ax = 0)
-	+ on(FRONT, BACK, Ay = 0);
+	+ int2d(TsTotal, LEFT, RIGHT, FRONT, BACK)(
+			//[Wx, Wy, Wz]'*parallelBdyComponents(Hx)
+			Wz
+	);
+	//+ on(TOP, BOTTOM, Az = 0)
+	//+ on(LEFT, RIGHT, Ax = 0)
+	//+ on(FRONT, BACK, Ay = 0);
 
 fespace VvNedelec(TvTotal, Edge03d); 
 fespace VvNedelecPlus(TvTotal, [Edge03d, P1]); 
@@ -153,8 +154,8 @@ Sv0 HNxx = 0, HNxy = 0, HNxz = 1;
 
 
 	
-//meissner;
-//medit("Solution", TvTotal, [Bx, By, Bz]);
+meissner;
+medit("Solution", TvTotal, [Bx, By, Bz]);
 
 //mesh CrossSection = square(nx, ny, 
 	//SquareParameterization(
