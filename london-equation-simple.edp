@@ -86,7 +86,7 @@ real JsPrefactor = 1/(Mu0*penetrationDepth^2);
 // are necessary for vector macros (Grad, Div, Curl, etc.) to work
 Sv0 inSC = region == SC;             	// Characteristic function of the SC
 Sv1 Theta;                           	// Scalar phase from Cordier 1 (rescaled; cf. eq. (60))
-Vv2 [Ax, Ay, Az] = [0, 0, 0];        	// Vector potential
+Vv2 [Ax, Ay, Az];        	// Vector potential
 Vv2 [Wx, Wy, Wz];                    	// Vector basis functions
 Sv1 w;                               	// Scalar basis functions
 Vv2 [Bx, By, Bz] = Curl3d(A);        	// Magnetic field
@@ -113,17 +113,20 @@ problem meissner([Ax, Ay, Az, Theta], [Wx, Wy, Wz, w], solver=CG) =
 	+ on(LEFT, RIGHT, Ax = 0)
 	+ on(FRONT, BACK, Ay = 0);
 
+//problem MeissnerNedelec([Ax, Ay, Az, Theta], [Wx, Wy, Wz, w], solver=CG) =
+	
 meissner;
+medit("Solution", TvTotal, [Bx, By, Bz]);
 
-mesh CrossSection = square(nx, ny, 
-	SquareParameterization(
-		-boxLength/2, boxLength/2, 
-		-boxLength, boxLength/2
-	)
-);
-fespace SsCrossSect (CrossSection, P2); 
-SsCrossSect BxMid, ByMid;
-BxMid = Bx(x, y, 0);
-ByMid = By(x, y, 0);
-plot([BxMid, ByMid], wait=true);
+//mesh CrossSection = square(nx, ny, 
+	//SquareParameterization(
+		//-boxLength/2, boxLength/2, 
+		//-boxLength, boxLength/2
+	//)
+//);
+//fespace SsCrossSect (CrossSection, P2); 
+//SsCrossSect BxMid, ByMid;
+//BxMid = Bx(x, y, 0);
+//ByMid = By(x, y, 0);
+//plot([BxMid, ByMid], wait=true);
 
