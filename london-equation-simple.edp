@@ -1,0 +1,151 @@
+load "msh3"
+load "tetgen"
+load "medit"
+load "iovtk"
+load "ffrandom"
+include "/home/user/Source/FreeFEM/freefem-macros/geometry.idp"
+include "/home/user/Source/FreeFEM/freefem-macros/constants.idp"
+include "/home/user/Source/FreeFEM/freefem-macros/vector-analysis.idp"
+include "/home/user/Source/freefem_matlab_octave_plot-public/release-v2.0/demos/ffmatlib.idp"
+include "MeshSurface.idp"
+
+// Macros
+//macro Curl3d(Ax, Ay, Az) [dy(Az)-dz(Ay), dz(Ax)-dx(Az), dx(Ay)-dy(Ax)] //
+//macro Div3d(Ax, Ay, Az) (dx(Ax) + dy(Ay) + dz(Az)) //
+//macro Grad(F) ([dx(F), dy(F), dz(F)]) //
+//macro dn(f) (N.x*dx(f) + N.y*dy(f) + N.z*dz(f)) //
+//macro SquareParameterization(a, b, c, d) [a + (b-a)*x, c + (d-c)*y] //
+
+//func r = sqrt(x^2 + y^2 + z^2);
+//func rho = sqrt(x^2 + y^2);
+////func phiHat = [-y/rho, x/rho, 0];
+//real rho0 = 1e-3;
+//real rhoApprox = rho >= rho0 ? rho : rho0;
+//func phiHat = [-y/rhoApprox, x/rhoApprox, 0];
+
+// Parameters
+//real Mu0 = 4.*pi*1.e-7;	// Vacuum magnetic permeability (SI)
+//real Mu0 = 4*pi;
+real B0 = 100; // External field strength
+real fluxQuantum = 20.7;	// Stuart units: Microns + Gauss
+
+// Geometry
+
+// BOUNDING BOX
+int FRONT=1, RIGHT=2, BACK=3, LEFT=4, BOTTOM=5, TOP=6;
+int EXTERNAL=100;
+int INTERNAL=110;
+real boxLength = 50;
+int nx=25, ny=25, nz=25;
+
+// Mesh-generation schematic:
+// mesh (2D) --> buildLayers (extrude) --> buildBdMesh (boundary mesh) 
+// --> mesh.Gamma (isolate boundaries and glue together, if necessary)
+// tetg(mesh1.Gamma + mesh2.Gamma + ...) (fill shell assembled in previous step with tetragonal cells)
+
+// Naming conventions: "T" --> "Triangulation," "v" --> "volume" (i.e., 3D), "s" --> "surface" (2D)
+//mesh Ts02D = square(nx, ny, SquareParameterization(-boxLength/2., boxLength/2., -boxLength/2., boxLength/2.));
+mesh Ts02D = square(nx, ny, 
+	SquareParameterization(
+		-boxLength/2, boxLength/2, 
+		-boxLength/2, boxLength/2
+	)
+);
+int[int] lup = [0, EXTERNAL], ldown = [0, EXTERNAL], 
+	lside = [0, EXTERNAL, 0, EXTERNAL, 0, EXTERNAL, 0, EXTERNAL];
+mesh3 Tv0 = buildlayers(Ts02D, nz, zbound=[-boxLength/2, boxLength/2], labelmid = lside, labelup = lup, labeldown = ldown);
+Tv0 = buildBdMesh(Tv0);
+meshS Ts0 = Tv0.Gamma;
+
+//plot(Ts02D, wait=true);		// This is more annoying than helpful
+//plot(Ts0, wait=true);		// Evidently not supported for 3D meshes...
+medit("Bounding box", Ts0);
+
+// SUPERCONDUCTING SLAB
+real scaleFactor = 10;
+real aspectRatio = 10;
+mesh TsSC2D = square(5*nx/scaleFactor, 5*ny/scaleFactor,   	// The "magic number" 5 was chosen
+	SquareParameterization(                                  	// to make the mesh relatively more dense on the
+		-boxLength/(2*scaleFactor), boxLength/(2*scaleFactor), 	// SC boundary than on the spatial boundary
+		-boxLength/(2*scaleFactor), boxLength/(2*scaleFactor)
+	)
+);
+int[int] SCup = [0, INTERNAL], SCdown = [0, INTERNAL],
+	SCside = [0, INTERNAL, 0, INTERNAL, 0, INTERNAL, 0, INTERNAL];
+mesh3 TvSC = buildlayers(TsSC2D, 5*nz/(scaleFactor*aspectRatio), 
+	zbound=[-boxLength/(2*scaleFactor*aspectRatio), boxLength/(2*scaleFactor*aspectRatio)],
+	labelmid = SCside, labelup = SCup, labeldown = SCdown);
+TvSC = buildBdMesh(TvSC);
+meshS TsSC = TvSC.Gamma;
+
+//plot(TvSC, wait=true);		// For some reason this isn't supported
+medit("SC mesh (no hole)", TvSC);
+
+// SLAB WITH HOLE
+//int holeBorder = 201;
+//real holeRatio = 0.5;
+//real holeRadius = boxLength/(2*scaleFactor*holeRatio);
+////TsSC2D = buildBdMesh(TsSC2D);
+//meshS TsSC1D = TsSC2D.Gamma;		// Border of 2D mesh extruded to form slab without hole
+//border hole(t = 0, 2*pi) {x = holeRadius*cos(t); y = holeRadius*sin(t); label = holeBorder;}
+//mesh TsSChole2D = buildmesh(TsSC1D(5*2*(nx + ny)/scaleFactor) - hole(5*2*(nx + ny)/scaleFactor));
+//mesh3 TvSChole = buildlayers(TsSChole2D, 5*nz/(scaleFactor*aspectRatio), 
+	//zbound=[-boxLength/(2*scaleFactor*aspectRatio), boxLength/(2*scaleFactor*aspectRatio)],
+	//labelmid = SCside, labelup = SCup, labeldown = SCdown);		// TODO: Figure out how to label hole boundary
+//TvSChole = buildBdMesh(TvSChole);
+//meshS TsSChole = TvSChole.Gamma;
+
+//plot(TvSChole, wait=true);
+
+// COMBINED MESH
+meshS TsTotal = Ts0 + TsSC;
+int space = 300;
+int SC = 301;
+real maxvolSpace = boxLength*boxLength*boxLength/(nx*ny*nz);
+real maxvolSC = maxvolSpace/(scaleFactor*scaleFactor*scaleFactor*aspectRatio*5*5*5);
+real[int] regions = [0, 0, boxLength*1.5/scaleFactor, space, maxvolSpace, 0, 0, 0, SC, maxvolSC];
+mesh3 TvTotal = tetg(TsTotal, switch = "pqaAAYYQ", nbofregions = 2, regionlist = regions);
+
+medit("Full triangulation", TvTotal);
+
+// FE SPACES
+fespace Sv0(TvTotal, P0);
+fespace Sv1(TvTotal, P1);
+fespace Vv2(TvTotal, [P2, P2, P2]);
+
+
+// PROBLEM CONSTANTS
+real penaltyConstant = 1.;
+real penetrationFraction = .1;
+real penetrationDepth = penetrationFraction*boxLength/scaleFactor;
+real inverseLambda = 1/penetrationDepth;
+real JsPrefactor = 1/(Mu0*penetrationDepth^2);
+real AqPrefactor = fluxQuantum/(2*pi*rho);
+
+// MESH FUNCTIONS
+Sv0 inSC = region == SC;
+Sv1 Theta;                            	// Scalar phase from Cordier 1 (rescaled; cf. eq. (60))
+Vv2 [Ax, Ay, Az] = [0, 0, 0];        	// Vector potential
+Vv2 [Wx, Wy, Wz];                    	// Vector basis functions
+Sv1 w;                               	// Scalar basis functions
+Vv2 [Bx, By, Bz] = Curl3d(A);        	// Magnetic field
+Vv2 [Hxx, Hxy, Hxz] = [0, 0, 1];     	// External (applied) magnetic field
+Vv2 [Jx, Jy, Jz] = inSC * Curl3d(B); 	// Current density (only defined in SC)
+
+// PROBLEM DEFINITION
+problem meissner([Ax, Ay, Az, Theta], [Wx, Wy, Wz, w]) = 
+	int3d(TvTotal)(
+		Curl3d(W)'*Curl3d(A) - Div3d(W)*Div3d(A)
+		+ penaltyConstant*Div3d(W)*Div3d(A)
+		+ inSC*inverseLambda^2*[Wx, Wy, Wz]'*[Ax, Ay, Az]
+		- inSC*inverseLambda*[Wx, Wy, Wz]'*[dx(Theta), dy(Theta), dz(Theta)]
+	)
+	+ int3d(TvTotal)(
+	    -inverseLambda*Grad3d(w)'*[Ax, Ay, Az]
+			+ Grad3d(w)'*Grad3d(Theta)
+	)
+	+ int2d(TsTotal, EXTERNAL)(
+	    [Wx, Wy, Wz]'*parallelBdyComponents(B)
+	);
+
+meissner;
