@@ -108,6 +108,9 @@ emptySpaceNedelec;
 CurlVector0 [Bcx, Bcy, Bcz] = Curl3d(Ac);
 // Saving the mesh again is redundant for now, but will become important once mesh refinement is implemented
 savemesh(AllSpace, "empty-space-mesh.mesh");
+// TODO: Determine whether Nedelec elements determine the solution at the center of gravity or the vertices (presumably vertices)
+savesol("empty-space.sol", AllSpace, [Acx, Acy, Acz], [Bcx, Bcy, Bcz]);
+savesol("empty-space-applied-field.sol", AllSpace, [HXx, HXy, HXz]);
 ffSaveData3(Acx, Acy, Acz, "empty-space-vector-potential.txt");
 ffSaveData3(Bcx, Bcy, Bcz, "empty-space-magnetic-field.txt");
 ffSaveVh(AllSpace, CurlVector0, "empty-space-nedelec-fespace.txt");
@@ -119,4 +122,5 @@ ffSaveVh(AllSpace, CurlVector0, "empty-space-nedelec-fespace.txt");
 //plot([Bx, By, Bz], wait=true);
 //medit("Magnetic field", AllSpace, [Bx, By, Bz]);
 //medit("Magnetic field", AllSpace, Bz);
-
+//plot([HXx, HXy, HXz], wait=true);
+medit("Applied field", AllSpace, [HXx, HXy, HXz], order=1);
