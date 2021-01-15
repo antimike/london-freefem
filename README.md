@@ -13,6 +13,8 @@ At the moment, these scripts don't contain any `fespace` declarations either, bu
 ### macros
 Convenience wrappers for common operations in FreeFEM, including vector calc operators Grad, Div, and Curl (for 2d and 3d) and common geometrical parameterization(s) (at the moment only `SquareParameterization` is supported).
 
+This is a git submodule.  The original repository is here: <https://github.com/antimike/freefem-macros>
+
 #### NOTES ON MACRO USE
 Most of the vector-calc macros rely on simple naming conventions to work; e.g., if `A` is the name of a vector field, its components must be named `Ax`, `Ay`, and `Az` for the call `Div3d(A)` to succeed (and in fact `A` does not itself have to be a variable name at all).
 
@@ -20,6 +22,11 @@ Some of the other macros and functions in `vector-analysis.idp`, in particular t
 
 ### matlab
 Git submodule for the `ffmatlib` plugin.  The code is also hosted on Github at <https://github.com/samplemaker/freefem_matlab_octave_plot>.
+
+### test
+Scripts and macros for testing and debugging.  
+
+Currently contains the script "plot-boundary-labels.idp" with macros `plotBdyLabels2d` and `plotBdyLabels3d`.  These will plot the (integer) values associated with the boundary of an input mesh.  (This is useful for, e.g., testing meshes imported from another script.)
 
 ## References
 TODO: Add bibliography here
