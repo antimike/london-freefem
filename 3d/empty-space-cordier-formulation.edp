@@ -16,17 +16,19 @@ meshS OuterBdy = AllSpace.Gamma;
 //fespace Sv0(AllSpace, P0);	
 //fespace Scalar1(AllSpace, P1);
 fespace Vector2(AllSpace, [P2, P2, P2]);
+fespace CurlVector0(AllSpace, Edge03d); 
 
 Vector2 [Ax, Ay, Az], [Wx, Wy, Wz];
-Vector2 [HXx, HXy, HXz] = [0, 0, 1];
+Vector2 [HXx, HXy, HXz] = [0, 0, H0];
+CurlVector0 [Acx, Acy, Acz], [Wcx, Wcy, Wcz];
 
-// PROBLEM
+// PROBLEM: CLASSICAL (CONTINUOUS) ELEMENTS
 problem emptySpaceContinuous([Ax, Ay, Az], [Wx, Wy, Wz]) = 
 	int3d(AllSpace)(
 		Curl3d(W)'*Curl3d(A) 
-		+ penaltyConstant*Div3d(W)*Div3d(A)
+		+ 100*penaltyConstant*Div3d(W)*Div3d(A)
 	)
-	+ int2d(OuterBdy, LEFT, RIGHT, FRONT, BACK)(
+	+ int2d(AllSpace, EXTERNAL)(
 			[Wx, Wy, Wz]'*parallelBdyComponents(HX)
 			//Wz
 	)
