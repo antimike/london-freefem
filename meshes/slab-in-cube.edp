@@ -1,0 +1,62 @@
+load "msh3"
+load "tetgen"
+load "medit"
+load "iovtk"
+load "ffrandom"
+include "/home/user/Source/FreeFEM/freefem-macros/geometry.idp"
+//include "/home/user/Source/FreeFEM/freefem-macros/constants.idp"
+//include "/home/user/Source/FreeFEM/freefem-macros/vector-analysis.idp"
+include "/home/user/Source/freefem_matlab_octave_plot-public/release-v2.0/demos/ffmatlib.idp"
+include "MeshSurface.idp"
+
+// Bounding box
+int FRONT=1, RIGHT=2, BACK=3, LEFT=4, BOTTOM=5, TOP=6;
+int EXTERNAL=100, INTERNAL=110;
+real boxLength = 50;
+int nx=25, ny=25, nz=25;
+
+int[int] BoxN = [nx, ny, nz];
+macro Interval [-boxLength/2, boxLength/2]//EOM
+real [int, int] BoxBounds = [Interval, Interval, Interval];
+int [int, int] BoxLabels = [[LEFT, RIGHT], [FRONT, BACK], [BOTTOM, TOP]];
+
+meshS BBox = SurfaceHex(BoxN, BoxBounds, BoxLabels, 1);
+
+//medit("Bounding box", BBox);
+
+// Slab (simpler construction)
+real scaleFactor = 10;
+real aspectRatio = 10;
+real slabLength = boxLength/scaleFactor;
+real slabHeight = slabLength/aspectRatio;
+int SLAB = 10;
+int nRatio = 5;
+
+int[int] SlabN = (nRatio/scaleFactor)*[nx, ny, (1/aspectRatio)*nz];
+
+real [int, int] SlabBounds = (1/scaleFactor)*[Interval, Interval, (1/aspectRatio)*Interval];
+int [int, int] SlabLabels = [[SLAB, SLAB], [SLAB, SLAB], [SLAB, SLAB]];
+
+meshS SlabBdy = SurfaceHex(SlabN, SlabBounds, SlabLabels, -1);
+
+//medit("SC mesh", SlabBdy);
+
+// COMBINED MESH
+
+int SPACE = 30;
+int SC = 301;
+real maxvolSpace = boxLength^3/(nx*ny*nz);
+real maxvolSlab = maxvolSpace/(scaleFactor^3*aspectRatio*nRatio^3);
+real[int] regions = [0, 0, slabHeight*1.5, SPACE, maxvolSpace, 0, 0, 0, SC, maxvolSlab];
+
+meshS TsTotal = BBox + SlabBdy;
+mesh3 TvTotal = tetg(TsTotal, switch = "pqaAAYYQ", nbofregions = 2, regionlist = regions);
+//TvTotal = checkmesh(TvTotal);
+TvTotal = buildBdMesh(TvTotal);
+TsTotal = TvTotal.Gamma;
+
+medit("Slab in cube mesh", TvTotal);
+
+savemesh(TvTotal, "slab_in_cube.mesh");
+savemesh(TsTotal, "slab_in_cube_boundary.mesh");
+
