@@ -1,0 +1,40 @@
+load "medit"
+load "msh3"
+
+//void plotBdyLabels2d(mesh Th) {
+				//int[int] lab = labels(Th);
+				//varf onG(u, v) = on(lab, u = label);
+				//fespace Vh(AllSpace, P1);
+				//Vh u;
+				//u[] = onG(0, Vh, tgv = -1);
+				//plot(u, wait=true);
+//}
+
+macro plotBdyLabels2d(Th) 
+{
+	int[int] lab = labels(Th);
+	varf onG(u, v) = on(lab, u = label);
+	fespace Vh(AllSpace, P1);
+	Vh u;
+	u[] = onG(0, Vh, tgv = -1);
+	plot(u, wait=true);
+} //EOM 
+
+macro plotBdyLabels3d(Th) 
+{
+	int[int] lab = labels(Th);
+	varf onG(u, v) = on(lab, u = label);
+	fespace Vh(AllSpace, P1);
+	Vh u;
+	u[] = onG(0, Vh, tgv = -1);
+	medit("Boundary labels", Th.Gamma, u);
+} //EOM 
+        
+//void plotBdyLables3d(mesh3 Th) {
+				//int[int] lab = labels(Th);
+				//varf onG(u, v) = on(lab, u = label);
+				//fespace Vh(AllSpace, P1);
+				//Vh u;
+				//u[] = onG(0, Vh, tgv = -1);
+				//medit("Boundary labels", Th.Gamma, u);
+//}
