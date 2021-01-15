@@ -18,5 +18,8 @@ Most of the vector-calc macros rely on simple naming conventions to work; e.g., 
 
 Some of the other macros and functions in `vector-analysis.idp`, in particular the macros designed to return unit vectors in various directions, rely on either `r0Internal` or `rho0Internal` being manually set.  This is because the formulas for these unit vectors become singular when `r = 0` or `rho = 0`, and accordingly a "safe-divide" function has been implemented internally which avoids any divide-by-zero SNAFUs.  Rather than choose arbitrary internal cutoff values, however, I've exposed "setters" `setMinR` and `setMinRho` which can be called from client scripts to set the cutoffs.
 
+### matlab
+Git submodule for the `ffmatlib` plugin.  The code is also hosted on Github at <https://github.com/samplemaker/freefem_matlab_octave_plot>.
+
 ## References
 TODO: Add bibliography here
