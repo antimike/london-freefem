@@ -1,0 +1,205 @@
+load "msh3"
+load "tetgen"
+load "medit"
+load "iovtk"
+load "ffrandom"
+include "/home/user/Source/FreeFEM/freefem-macros/geometry.idp"
+include "/home/user/Source/FreeFEM/freefem-macros/constants.idp"
+include "/home/user/Source/FreeFEM/freefem-macros/vector-analysis.idp"
+include "/home/user/Source/freefem_matlab_octave_plot-public/release-v2.0/demos/ffmatlib.idp"
+include "MeshSurface.idp"
+
+
+// PARAMETERS
+
+//real Mu0 = 4.*pi*1.e-7;	// Vacuum magnetic permeability (SI)
+//real Mu0 = 4*pi;
+real B0 = 100; // External field strength
+real fluxQuantum = 20.7;	// Stuart units: Microns + Gauss
+
+// GEOMETRY
+
+// Bounding box
+int FRONT=1, RIGHT=2, BACK=3, LEFT=4, BOTTOM=5, TOP=6;
+int EXTERNAL=100, INTERNAL=110;
+real boxLength = 50;
+int nx=25, ny=25, nz=25;
+
+int[int] BoxN = [nx, ny, nz];
+macro Interval [-boxLength/2, boxLength/2]//EOM
+real [int, int] BoxBounds = [Interval, Interval, Interval];
+int [int, int] BoxLabels = [[LEFT, RIGHT], [FRONT, BACK], [BOTTOM, TOP]];
+
+meshS BBox = SurfaceHex(BoxN, BoxBounds, BoxLabels, 1);
+
+//medit("Bounding box", BBox);
+
+// Slab (simpler construction)
+real scaleFactor = 10;
+real aspectRatio = 10;
+real slabLength = boxLength/scaleFactor;
+real slabHeight = slabLength/aspectRatio;
+int SLAB = 10;
+int nRatio = 5;
+
+int[int] SlabN = (nRatio/scaleFactor)*[nx, ny, (1/aspectRatio)*nz];
+
+real [int, int] SlabBounds = (1/scaleFactor)*[Interval, Interval, (1/aspectRatio)*Interval];
+int [int, int] SlabLabels = [[SLAB, SLAB], [SLAB, SLAB], [SLAB, SLAB]];
+
+meshS SlabBdy = SurfaceHex(SlabN, SlabBounds, SlabLabels, -1);
+
+//medit("SC mesh", SlabBdy);
+
+// COMBINED MESH
+
+int SPACE = 30;
+int SC = 301;
+real maxvolSpace = boxLength^3/(nx*ny*nz);
+real maxvolSlab = maxvolSpace/(scaleFactor^3*aspectRatio*nRatio^3);
+real[int] regions = [0, 0, slabHeight*1.5, SPACE, maxvolSpace, 0, 0, 0, SC, maxvolSlab];
+
+meshS TsTotal = BBox + SlabBdy;
+mesh3 TvTotal = tetg(TsTotal, switch = "pqaAAYYQ", nbofregions = 2, regionlist = regions);
+//TvTotal = checkmesh(TvTotal);
+TvTotal = buildBdMesh(TvTotal);
+TsTotal = TvTotal.Gamma;
+
+//medit("Full triangulation", TvTotal);
+
+// FE SPACES
+
+fespace Sv0(TvTotal, P0);
+fespace Sv1(TvTotal, P1);
+fespace Vv2(TvTotal, [P2, P2, P2]);
+
+
+
+// PROBLEM CONSTANTS
+
+real penaltyConstant = 1.;
+real penetrationFraction = .1;
+real penetrationDepth = penetrationFraction*slabLength;
+real inverseLambda = 1/penetrationDepth;
+real JsPrefactor = 1/(Mu0*penetrationDepth^2);
+
+// MESH FUNCTIONS
+
+// NOTE: Naming conventions on vector components (i.e., vector `Foo` has components `[Foox, Fooy, Fooz]`) 
+// are necessary for vector macros (Grad, Div, Curl, etc.) to work
+Sv0 inSC = region == SC;             	// Characteristic function of the SC
+Sv1 Theta = 0;                           	// Scalar phase from Cordier 1 (rescaled; cf. eq. (60))
+Vv2 [Ax, Ay, Az];        	// Vector potential
+Vv2 [Wx, Wy, Wz];                    	// Vector basis functions
+Sv1 w;                               	// Scalar basis functions
+Vv2 [Bx, By, Bz] = Curl3d(A);        	// Magnetic field
+Vv2 [Hxx, Hxy, Hxz] = [0, 0, 1];     	// External (applied) magnetic field
+Vv2 [Jx, Jy, Jz] = inSC * Curl3d(B); 	// Current density (only defined in SC)
+
+// PROBLEM DEFINITION
+
+//problem meissner([Ax, Ay, Az, Theta], [Wx, Wy, Wz, w], solver=CG) = 
+	//int3d(TvTotal)(
+		//Curl3d(W)'*Curl3d(A) 
+		////- Div3d(W)*Div3d(A)
+		//+ penaltyConstant*Div3d(W)*Div3d(A)
+		//+ inSC*inverseLambda^2*[Wx, Wy, Wz]'*[Ax, Ay, Az]
+		//- inSC*inverseLambda*[Wx, Wy, Wz]'*Grad3d(Theta)
+	//)
+	//+ int3d(TvTotal)(
+			//-1*inSC*inverseLambda*Grad3d(w)'*[Ax, Ay, Az]
+			//+ inSC*Grad3d(w)'*Grad3d(Theta)
+	//)
+	//+ int2d(TsTotal, LEFT, RIGHT, FRONT, BACK)(
+			////[Wx, Wy, Wz]'*parallelBdyComponents(Hx)
+			//Wz
+	//)
+	//+ on(TOP, BOTTOM, Az = 0)
+	//+ on(LEFT, RIGHT, Ax = 0)
+	//+ on(FRONT, BACK, Ay = 0);
+problem emptySpace([Ax, Ay, Az], [Wx, Wy, Wz]) = 
+	int3d(TvTotal)(
+		Curl3d(W)'*Curl3d(A) 
+		//- Div3d(W)*Div3d(A)
+		+ penaltyConstant*Div3d(W)*Div3d(A)
+	)
+	//+ int2d(TsTotal, LEFT, RIGHT, FRONT, BACK)(
+			////[Wx, Wy, Wz]'*parallelBdyComponents(Hx)
+			//Wz
+	//)
+	+ on(TOP, BOTTOM, Az=0)
+	+ on(LEFT, RIGHT, Ax=0)
+	+ on(FRONT, BACK, Ay=0);
+	
+emptySpace;
+
+
+fespace VvNedelec(TvTotal, Edge03d); 
+fespace VvNedelecPlus(TvTotal, [Edge03d, P1]); 
+
+//Sv0 inSC = region == SC;             	// Characteristic function of the SC
+//VvNedelecPlus [ANx, ANy, ANz, ThetaN];        	// Vector potential
+//VvNedelecPlus [WNx, WNy, WNz, wN];                    	// Vector basis functions
+VvNedelec [ANx, ANy, ANz];
+VvNedelec [WNx, WNy, WNz];
+VvNedelec [BNx, BNy, BNz] = Curl3d(AN);        	// Magnetic field
+//VvNedelec [HNxx, HNxy, HNxz] = [0, 0, 1];     	// External (applied) magnetic field
+VvNedelec [JNx, JNy, JNz] = inSC * Curl3d(BN); 	// Current density (only defined in SC)
+Sv0 HNxx = 0, HNxy = 0, HNxz = 1;
+
+//problem emptySpaceNedelec([ANx, ANy, ANz], [WNx, WNy, WNz]) = 
+	//int3d(TvTotal)(
+		//Curl3d(WN)'*Curl3d(AN) 
+		////- Div3d(WN)*Div3d(AN)
+		//+ penaltyConstant*Div3d(WN)*Div3d(AN)
+	//)
+	////+ int2d(TsTotal, LEFT, RIGHT, FRONT, BACK)(
+			//////[WNx, WNy, WNz]'*parallelBdyComponents(Hx)
+			////WNz
+	////)
+	//+ on(TOP, BOTTOM, ANz=0)
+	//+ on(LEFT, RIGHT, ANx=0)
+	//+ on(FRONT, BACK, ANy=0);
+	
+//emptySpaceNedelec;
+//problem MeissnerNedelec([ANx, ANy, ANz, ThetaN], [WNx, WNy, WNz, wN], solver=CG) =
+//varf M([ANx, ANy, ANz, ThetaN], [WNx, WNy, WNz, wN]) = 
+	//int3d(TvTotal)(
+		//Curl3d(WN)'*Curl3d(AN) - Div3d(WN)*Div3d(AN)
+		//+ penaltyConstant*Div3d(WN)*Div3d(AN)
+		//+ inSC*inverseLambda^2*[WNx, WNy, WNz]'*[ANx, ANy, ANz]
+		//- inSC*inverseLambda*[WNx, WNy, WNz]'*Grad3d(ThetaN)
+	//)
+	//+ int3d(TvTotal)(
+			//-1*inSC*inverseLambda*Grad3d(wN)'*[ANx, ANy, ANz]
+			//+ inSC*Grad3d(wN)'*Grad3d(ThetaN)
+	//);
+
+//varf A([ANx, ANy, ANz, ThetaN], [WNx, WNy, WNz, wN]) = 
+	//int2d(TsTotal, EXTERNAL)(
+			//[WNx, WNy, WNz]'*parallelBdyComponents(Hx)
+	//);
+
+//matrix MM = M(VvNedelecPlus, VvNedelecPlus);
+//Sv1 AA; AA[] = A(0, VvNedelecPlus);
+
+//set(MM, solver=CG);
+//[ANx[], ANy[], ANz[], ThetaN[]] = MM^-1*AA[];
+
+
+	
+//meissner;
+//medit("Solution", TvTotal, [Bx, By, Bz]);
+
+//mesh CrossSection = square(nx, ny, 
+	//SquareParameterization(
+		//-boxLength/2, boxLength/2, 
+		//-boxLength, boxLength/2
+	//)
+//);
+//fespace SsCrossSect (CrossSection, P2); 
+//SsCrossSect BxMid, ByMid;
+//BxMid = Bx(x, y, 0);
+//ByMid = By(x, y, 0);
+//plot([BxMid, ByMid], wait=true);
+
