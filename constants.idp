@@ -16,7 +16,6 @@ real boxLength = 50;
 real scaleFactor = 10;
 real aspectRatio = 10;
 int nRatio = 5;
-
 int nx=25, ny=25, nz=25;
 real slabLength = boxLength/scaleFactor;
 real slabHeight = slabLength/aspectRatio;
