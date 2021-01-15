@@ -1,3 +1,6 @@
 [submodule "matlab"]
 	path = matlab
 	url = https://github.com/samplemaker/freefem_matlab_octave_plot
+[submodule "macros"]
+	path = macros
+	url = https://github.com/antimike/freefem-macros
