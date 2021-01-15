@@ -1,0 +1,37 @@
+load "msh3"
+load "tetgen"
+load "medit"
+load "iovtk"
+load "ffrandom"
+include "MeshSurface.idp"	// Part of the standard FreeFEM++ installation
+include "../constants.idp"
+include "../macros/vector-analysis.idp"
+include "../matlab/release-v2.0/demos/ffmatlib.idp"
+
+mesh3 AllSpace = readmesh3("../meshes/slab_in_cube.mesh");
+//meshS OuterBdy = readmesh("../meshes/slab_in_cube_boundary.mesh");
+meshS OuterBdy = AllSpace.Gamma;
+
+// FE SPACES
+//fespace Sv0(AllSpace, P0);	
+//fespace Scalar1(AllSpace, P1);
+fespace Vector2(AllSpace, [P2, P2, P2]);
+
+Vector2 [Ax, Ay, Az], [Wx, Wy, Wz];
+Vector2 [HXx, HXy, HXz] = [0, 0, 1];
+
+// PROBLEM
+problem emptySpaceContinuous([Ax, Ay, Az], [Wx, Wy, Wz]) = 
+	int3d(AllSpace)(
+		Curl3d(W)'*Curl3d(A) 
+		+ penaltyConstant*Div3d(W)*Div3d(A)
+	)
+	+ int2d(OuterBdy, LEFT, RIGHT, FRONT, BACK)(
+			[Wx, Wy, Wz]'*parallelBdyComponents(HX)
+			//Wz
+	)
+	+ on(TOP, BOTTOM, Az=0)
+	+ on(LEFT, RIGHT, Ax=0)
+	+ on(FRONT, BACK, Ay=0);
+	
+emptySpaceContinuous;
