@@ -1,18 +1,30 @@
+// FUNDAMENTAL CONSTANTS
+real fluxQuantum = 20.7;	// Stuart units: Microns + Gauss
+real Mu0 = 4*pi;
+//real Mu0 = 4.*pi*1.e-7;	// Vacuum magnetic permeability (SI)
+
+// REGION IDENTIFIERS
+// The values don't matter, only that they're unique
 int FRONT=1, RIGHT=2, BACK=3, LEFT=4, BOTTOM=5, TOP=6;
 int EXTERNAL=100, INTERNAL=110;
+int SLAB = 10;	// This was intended as a "multiplier"---currently not used
+int SC = 301;		// This is the actual SC region ID
+int SPACE = 30;
+
+// DIMENSIONS
 real boxLength = 50;
+real scaleFactor = 10;
+real aspectRatio = 10;
 int nx=25, ny=25, nz=25;
 real slabLength = boxLength/scaleFactor;
 real slabHeight = slabLength/aspectRatio;
-int SLAB = 10;	// This was intended as a "multiplier"---currently not used
-int SPACE = 30;
-int SC = 301;		// This is the actual SC region ID
-real B0 = 100; // External field strength
-real fluxQuantum = 20.7;	// Stuart units: Microns + Gauss
-real penaltyConstant = 1.;
+
+// PROBLEM-SPECIFIC PHYSICAL CONSTANTS
+real H0 = 100; // External field strength
 real penetrationFraction = .1;
 real penetrationDepth = penetrationFraction*slabLength;
 real inverseLambda = 1/penetrationDepth;
 real JsPrefactor = 1/(Mu0*penetrationDepth^2);
-//real Mu0 = 4.*pi*1.e-7;	// Vacuum magnetic permeability (SI)
-real Mu0 = 4*pi;
+
+// Numerical parameters
+real penaltyConstant = 1.;
