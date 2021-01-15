@@ -17,13 +17,16 @@ meshS OuterBdy = AllSpace.Gamma;
 //fespace Sv0(AllSpace, P0);	
 //fespace Scalar1(AllSpace, P1);
 fespace Vector2(AllSpace, [P2, P2, P2]);
+fespace DivVector0(AllSpace, RT03d); 
 fespace CurlVector0(AllSpace, Edge03d); 
 
 Vector2 [Ax, Ay, Az], [Wx, Wy, Wz];
 Vector2 [HXx, HXy, HXz] = [0, 0, H0];
 CurlVector0 [Acx, Acy, Acz], [Wcx, Wcy, Wcz];
+DivVector0 [Adx, Ady, Adz], [Wdx, Wdy, Wdz];
 
 // PROBLEM: CLASSICAL (CONTINUOUS) ELEMENTS
+// This consistently crashes for me, even without attempting to plot
 problem emptySpaceContinuous([Ax, Ay, Az], [Wx, Wy, Wz]) = 
 	int3d(AllSpace)(
 		Curl3d(W)'*Curl3d(A) 
@@ -46,32 +49,60 @@ problem emptySpaceContinuous([Ax, Ay, Az], [Wx, Wy, Wz]) =
 	+ on(TOP, BOTTOM, Az=0)
 	+ on(LEFT, RIGHT, Ax=0)
 	+ on(FRONT, BACK, Ay=0);
-	
+
+// PROBLEM: CURL-CONFORMING (NEDELEC) ELEMENTS
+// This at least runs without crashing, but the results differ depending on how the boundary conditions are set
 problem emptySpaceNedelec([Acx, Acy, Acz], [Wcx, Wcy, Wcz]) = 
 	int3d(AllSpace)(
 		Curl3d(Wc)'*Curl3d(Ac) 
 		//+ 100*penaltyConstant*Div3d(Wc)*Div3d(Ac)
 	)
-	+ int2d(AllSpace, LEFT)(
-			//[Wcx, Wcy, Wcz]'*parallelBdyComponents(HX)
-			//Wcz
-			Wcy
-	)
-	+ int2d(AllSpace, EXTERNAL)(
-	    [Wcx, Wcy, Wcz]'*parallelBdyComponents(HX)
+	+ int2d(AllSpace, LEFT, RIGHT, TOP, BOTTOM, FRONT, BACK)(
+			[Wcx, Wcy, Wcz]'*parallelBdyComponents(HX)
 	);
+	//+ int2d(AllSpace, LEFT)(
+			////[Wcx, Wcy, Wcz]'*parallelBdyComponents(HX)
+			////Wcz
+			//Wcy*H0
+	//)
 	//+ int2d(AllSpace, RIGHT)(
-			//-Wcy
+			//-Wcy*H0
 	//)
 	//+ int2d(AllSpace, FRONT)(
-			//-Wcx
+			//-Wcx*H0
 	//)
 	//+ int2d(AllSpace, BACK)(
-			//Wcx
+			//Wcx*H0
 	//);
-	//+ on(TOP, BOTTOM, Acz=0)
-	//+ on(LEFT, RIGHT, Acx=0)
-	//+ on(FRONT, BACK, Acy=0);
+
+// PROBLEM: EMPTY SPACE WITH DIV CONFORMING (RAVIART-THOMAS) ELEMENTS
+// This doesn't crash but the solver gives NaN as both min and max
+problem emptySpaceRaviartThomas([Adx, Ady, Adz], [Wdx, Wdy, Wdz]) = 
+	int3d(AllSpace)(
+		Curl3d(Wd)'*Curl3d(Ad) 
+		+ 100*penaltyConstant*Div3d(Wd)*Div3d(Ad)
+	)
+	+ int2d(AllSpace, LEFT)(
+			Wdy
+	)
+	+ int2d(AllSpace, LEFT)(
+			Wdy
+	)
+	+ int2d(AllSpace, RIGHT)(
+			-Wdy
+	)
+	+ int2d(AllSpace, FRONT)(
+			-Wdx
+	)
+	+ int2d(AllSpace, BACK)(
+			Wdx
+	);
+	//+ int2d(AllSpace, LEFT, RIGHT, TOP, BOTTOM, FRONT, BACK)(
+			//[Wdx, Wdy, Wdz]'*parallelBdyComponents(HX)
+	//);
 
 //emptySpaceContinuous;
 emptySpaceNedelec;
+//emptySpaceRaviartThomas;
+
+
