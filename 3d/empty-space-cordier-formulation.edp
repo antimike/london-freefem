@@ -11,11 +11,10 @@ include "../test/plot-boundary-labels.idp"
 
 mesh3 AllSpace = readmesh3("../meshes/slab_in_cube.mesh");
 meshS OuterBdy = AllSpace.Gamma;
+//mesh CrossSection = readmesh("../meshes/slab-in-cube-cross-section.mesh");
 //plotBdyLabels3d(AllSpace);
 
 // FE SPACES
-//fespace Sv0(AllSpace, P0);	
-//fespace Scalar1(AllSpace, P1);
 fespace Vector2(AllSpace, [P2, P2, P2]);
 fespace DivVector0(AllSpace, RT03d); 
 fespace CurlVector0(AllSpace, Edge03d); 
@@ -58,23 +57,23 @@ problem emptySpaceNedelec([Acx, Acy, Acz], [Wcx, Wcy, Wcz]) =
 		Curl3d(Wc)'*Curl3d(Ac) 
 		//+ 100*penaltyConstant*Div3d(Wc)*Div3d(Ac)
 	)
-	+ int2d(AllSpace, LEFT, RIGHT, TOP, BOTTOM, FRONT, BACK)(
-			[Wcx, Wcy, Wcz]'*parallelBdyComponents(HX)
-	);
-	//+ int2d(AllSpace, LEFT)(
-			////[Wcx, Wcy, Wcz]'*parallelBdyComponents(HX)
-			////Wcz
-			//Wcy*H0
-	//)
-	//+ int2d(AllSpace, RIGHT)(
-			//-Wcy*H0
-	//)
-	//+ int2d(AllSpace, FRONT)(
-			//-Wcx*H0
-	//)
-	//+ int2d(AllSpace, BACK)(
-			//Wcx*H0
+	//+ int2d(AllSpace, LEFT, RIGHT, TOP, BOTTOM, FRONT, BACK)(
+			//[Wcx, Wcy, Wcz]'*parallelBdyComponents(HX)
 	//);
+	+ int2d(AllSpace, LEFT)(
+			//[Wcx, Wcy, Wcz]'*parallelBdyComponents(HX)
+			//Wcz
+			Wcy*H0
+	)
+	+ int2d(AllSpace, RIGHT)(
+			-Wcy*H0
+	)
+	+ int2d(AllSpace, FRONT)(
+			-Wcx*H0
+	)
+	+ int2d(AllSpace, BACK)(
+			Wcx*H0
+	);
 
 // PROBLEM: EMPTY SPACE WITH DIV CONFORMING (RAVIART-THOMAS) ELEMENTS
 // This doesn't crash but the solver gives NaN as both min and max
@@ -106,4 +105,18 @@ problem emptySpaceRaviartThomas([Adx, Ady, Adz], [Wdx, Wdy, Wdz]) =
 emptySpaceNedelec;
 //emptySpaceRaviartThomas;
 
+CurlVector0 [Bcx, Bcy, Bcz] = Curl3d(Ac);
+// Saving the mesh again is redundant for now, but will become important once mesh refinement is implemented
+savemesh(AllSpace, "empty-space-mesh.mesh");
+ffSaveData3(Acx, Acy, Acz, "empty-space-vector-potential.txt");
+ffSaveData3(Bcx, Bcy, Bcz, "empty-space-magnetic-field.txt");
+ffSaveVh(AllSpace, CurlVector0, "empty-space-nedelec-fespace.txt");
+
+// OUTPUT RESULTS
+//fespace VectorProj(CrossSection, [P1, P1]); 
+//VectorProj [BxMid, BzMid] = [Bx, 0, Bz];
+//plot([BxMid, BzMid], wait=true);
+//plot([Bx, By, Bz], wait=true);
+//medit("Magnetic field", AllSpace, [Bx, By, Bz]);
+//medit("Magnetic field", AllSpace, Bz);
 
