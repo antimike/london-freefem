@@ -7,10 +7,11 @@ include "MeshSurface.idp"	// Part of the standard FreeFEM++ installation
 include "../constants.idp"
 include "../macros/vector-analysis.idp"
 include "../matlab/release-v2.0/demos/ffmatlib.idp"
+include "../test/plot-boundary-labels.idp"
 
 mesh3 AllSpace = readmesh3("../meshes/slab_in_cube.mesh");
-//meshS OuterBdy = readmesh("../meshes/slab_in_cube_boundary.mesh");
 meshS OuterBdy = AllSpace.Gamma;
+//plotBdyLabels3d(AllSpace);
 
 // FE SPACES
 //fespace Sv0(AllSpace, P0);	
@@ -28,12 +29,49 @@ problem emptySpaceContinuous([Ax, Ay, Az], [Wx, Wy, Wz]) =
 		Curl3d(W)'*Curl3d(A) 
 		+ 100*penaltyConstant*Div3d(W)*Div3d(A)
 	)
-	+ int2d(AllSpace, EXTERNAL)(
-			[Wx, Wy, Wz]'*parallelBdyComponents(HX)
+	+ int2d(AllSpace, LEFT)(
+			//[Wx, Wy, Wz]'*parallelBdyComponents(HX)
 			//Wz
+			Wy
+	)
+	+ int2d(AllSpace, RIGHT)(
+			-Wy
+	)
+	+ int2d(AllSpace, FRONT)(
+			-Wx
+	)
+	+ int2d(AllSpace, BACK)(
+			Wx
 	)
 	+ on(TOP, BOTTOM, Az=0)
 	+ on(LEFT, RIGHT, Ax=0)
 	+ on(FRONT, BACK, Ay=0);
 	
-emptySpaceContinuous;
+problem emptySpaceNedelec([Acx, Acy, Acz], [Wcx, Wcy, Wcz]) = 
+	int3d(AllSpace)(
+		Curl3d(Wc)'*Curl3d(Ac) 
+		//+ 100*penaltyConstant*Div3d(Wc)*Div3d(Ac)
+	)
+	+ int2d(AllSpace, LEFT)(
+			//[Wcx, Wcy, Wcz]'*parallelBdyComponents(HX)
+			//Wcz
+			Wcy
+	)
+	+ int2d(AllSpace, EXTERNAL)(
+	    [Wcx, Wcy, Wcz]'*parallelBdyComponents(HX)
+	);
+	//+ int2d(AllSpace, RIGHT)(
+			//-Wcy
+	//)
+	//+ int2d(AllSpace, FRONT)(
+			//-Wcx
+	//)
+	//+ int2d(AllSpace, BACK)(
+			//Wcx
+	//);
+	//+ on(TOP, BOTTOM, Acz=0)
+	//+ on(LEFT, RIGHT, Acx=0)
+	//+ on(FRONT, BACK, Acy=0);
+
+//emptySpaceContinuous;
+emptySpaceNedelec;
