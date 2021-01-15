@@ -21,6 +21,7 @@ func real safeDivide(real num, real num0){
 
 // Convention-based macro approach suggested in FreeFEM manual
 // For these macros to work, components of FEspace vector `Foo` must be named `[Foox, Fooy, Fooz]`
+// TODO: Find a way to enforce the condition rho0Internal != 0 in the relevant macros
 macro Dot3d(A, B) (A#x*B#x + A#y*B#y + A#z*B#z)//EOM 
 macro Dot2d(A, B) (A#x*B#x + A#y*B#y)//EOM 
 macro Cross3dM(A, B)  [A#y*B#z - B#z*A#y, A#z*B#x - A#x*B#z, A#x*B#y - A#y*B#x]//EOM 
