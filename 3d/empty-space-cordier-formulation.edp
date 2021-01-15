@@ -52,6 +52,7 @@ problem emptySpaceContinuous([Ax, Ay, Az], [Wx, Wy, Wz]) =
 
 // PROBLEM: CURL-CONFORMING (NEDELEC) ELEMENTS
 // This at least runs without crashing, but the results differ depending on how the boundary conditions are set
+// UPDATE: Most of the discrepancy has been resolved, but a ~10% difference in the min/max values returned by UMFPACK remains
 problem emptySpaceNedelec([Acx, Acy, Acz], [Wcx, Wcy, Wcz]) = 
 	int3d(AllSpace)(
 		Curl3d(Wc)'*Curl3d(Ac) 
