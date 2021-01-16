@@ -10,6 +10,8 @@ include "../matlab/release-v2.0/demos/ffmatlib.idp"
 include "../test/plot-boundary-labels.idp"
 
 mesh3 AllSpace = readmesh3("../meshes/slab_in_cube.mesh");
+mesh3 BowlingPin = readmesh3("../meshes/bowling-pin.mesh");
+
 meshS OuterBdy = AllSpace.Gamma;
 //mesh CrossSection = readmesh("../meshes/slab-in-cube-cross-section.mesh");
 //plotBdyLabels3d(AllSpace);
@@ -18,6 +20,18 @@ meshS OuterBdy = AllSpace.Gamma;
 fespace Vector2(AllSpace, [P2, P2, P2]);
 fespace DivVector0(AllSpace, RT03d); 
 fespace CurlVector0(AllSpace, Edge03d); 
+fespace BPCurlVector0(BowlingPin, Edge03d); 
+fespace BPScalar(BowlingPin, P1); 
+
+BPScalar Boopy = x^2 + y^2 - z^2;
+BPCurlVector0 [Hbpx, Hbpy, Hbpz] = [-y, x, 0];
+BPCurlVector0 Hbp[] = [-y, x, 0];
+
+//medit("Applied field on bowling pin mesh", BowlingPin, Hbpz);
+//medit("Vector field on bowling pin", BowlingPin, [Hbpx, Hbpy, Hbpz]);
+//plot([Hbpx, Hbpy, Hbpz], wait=true);
+//medit("Boopy", BowlingPin, Boopy);
+medit("Hbp", BowlingPin, Hbp);
 
 Vector2 [Ax, Ay, Az], [Wx, Wy, Wz];
 Vector2 [HXx, HXy, HXz] = [0, 0, H0];
@@ -123,4 +137,5 @@ ffSaveVh(AllSpace, CurlVector0, "empty-space-nedelec-fespace.txt");
 //medit("Magnetic field", AllSpace, [Bx, By, Bz]);
 //medit("Magnetic field", AllSpace, Bz);
 //plot([HXx, HXy, HXz], wait=true);
-medit("Applied field", AllSpace, [HXx, HXy, HXz], order=1);
+//medit("Applied field", AllSpace, HXz, order=1);
+//plot(HXz, wait=1);
