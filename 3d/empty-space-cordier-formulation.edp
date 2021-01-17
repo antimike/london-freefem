@@ -13,25 +13,14 @@ mesh3 AllSpace = readmesh3("../meshes/slab_in_cube.mesh");
 mesh3 BowlingPin = readmesh3("../meshes/bowling-pin.mesh");
 
 meshS OuterBdy = AllSpace.Gamma;
-//mesh CrossSection = readmesh("../meshes/slab-in-cube-cross-section.mesh");
+mesh CrossSection = readmesh("../meshes/slab-in-cube-cross-section.mesh");
 //plotBdyLabels3d(AllSpace);
 
 // FE SPACES
+fespace Scalar1(AllSpace, P1); 
 fespace Vector2(AllSpace, [P2, P2, P2]);
 fespace DivVector0(AllSpace, RT03d); 
 fespace CurlVector0(AllSpace, Edge03d); 
-fespace BPCurlVector0(BowlingPin, Edge03d); 
-fespace BPScalar(BowlingPin, P1); 
-
-BPScalar Boopy = x^2 + y^2 - z^2;
-BPCurlVector0 [Hbpx, Hbpy, Hbpz] = [-y, x, 0];
-BPCurlVector0 Hbp[] = [-y, x, 0];
-
-//medit("Applied field on bowling pin mesh", BowlingPin, Hbpz);
-//medit("Vector field on bowling pin", BowlingPin, [Hbpx, Hbpy, Hbpz]);
-//plot([Hbpx, Hbpy, Hbpz], wait=true);
-//medit("Boopy", BowlingPin, Boopy);
-medit("Hbp", BowlingPin, Hbp);
 
 Vector2 [Ax, Ay, Az], [Wx, Wy, Wz];
 Vector2 [HXx, HXy, HXz] = [0, 0, H0];
@@ -130,12 +119,18 @@ ffSaveData3(Bcx, Bcy, Bcz, "empty-space-magnetic-field.txt");
 ffSaveVh(AllSpace, CurlVector0, "empty-space-nedelec-fespace.txt");
 
 // OUTPUT RESULTS
-//fespace VectorProj(CrossSection, [P1, P1]); 
-//VectorProj [BxMid, BzMid] = [Bx, 0, Bz];
-//plot([BxMid, BzMid], wait=true);
-//plot([Bx, By, Bz], wait=true);
-//medit("Magnetic field", AllSpace, [Bx, By, Bz]);
-//medit("Magnetic field", AllSpace, Bz);
-//plot([HXx, HXy, HXz], wait=true);
-//medit("Applied field", AllSpace, HXz, order=1);
-//plot(HXz, wait=1);
+matrix Convert = interpolate(Vector2, CurlVector0);
+Vector2 [Bx, By, Bz];
+Bx[] = Convert*Bcx[];
+
+fespace VectorProj(CrossSection, [P1, P1]); 
+VectorProj [BxMid, BzMid] = [Bx(x, 0, z), Bz(x, 0, z)];
+
+// Interpolate to get z-component of magnetic field
+int[int] components = [2];
+matrix Proj = interpolate(Scalar1, CurlVector0, inside=0, U2Vc=components);
+Scalar1 Bsz = Proj*Bcx[];
+// These 'medit' calls don't work---I can't get either the density plot or the (2D!) vector plot to work.
+//medit("B_z", AllSpace, Bsz);
+//medit("Cross-section: y = 0", CrossSection, [BxMid, BzMid]);
+plot([BxMid, BzMid], wait=true);
