@@ -1,0 +1,30 @@
+load "msh3"
+load "tetgen"
+load "medit"
+load "iovtk"
+load "ffrandom"
+include "MeshSurface.idp"	// Part of the standard FreeFEM++ installation
+include "../constants.idp"
+include "../macros/vector-analysis.idp"
+include "../matlab/release-v2.0/demos/ffmatlib.idp"
+include "../test/plot-boundary-labels.idp"
+
+mesh3 AllSpace = readmesh3("../meshes/slab_in_cube.mesh");
+mesh3 BowlingPin = readmesh3("../meshes/bowling-pin.mesh");
+
+fespace Vh1(AllSpace, Edge03d); 
+fespace Vh2(BowlingPin, RT03d); 
+matrix M = interpolate(Vh1, Vh2);
+
+fespace BPCurlVector0(BowlingPin, Edge03d); 
+fespace BPScalar(BowlingPin, P1); 
+
+BPScalar Boopy = x^2 + y^2 - z^2;
+BPCurlVector0 [Hbpx, Hbpy, Hbpz] = [-y, x, 0];
+BPCurlVector0 Hbp = [-y, x, 0];
+
+medit("Applied field on bowling pin mesh", BowlingPin, Hbpz);
+medit("Vector field on bowling pin", BowlingPin, [Hbpx, Hbpy, Hbpz]);
+plot([Hbpx, Hbpy, Hbpz], wait=true);
+medit("Boopy", BowlingPin, Boopy);
+medit("Hbp", BowlingPin, Hbp);
