@@ -1,0 +1,37 @@
+load "Element_Mixte"
+load "medit"
+border center(t=0,1){x=0;y=1-2*t;label=1;};
+border bottom(t=0,1){x=2*t;y=-1;label=2;};
+border outer(t=0,1){x=2;y=-1+2*t;label=3;};
+border top(t=0,1){x=2-2*t;y=1;label=4;};
+border wire(t=0,2*pi){x=1+0.1*cos(t);y=0.1*sin(t);label=5;};
+mesh Th = buildmesh( center(10)+bottom(10)+outer(10)+top(10)+wire(30) );
+plot(Th);
+fespace Bspace(Th,RT1Ortho);
+fespace Jspace(Th,P0);
+fespace Pspace(Th,P2);
+Bspace [Bx,By],[BBx,BBy]; //mag field and test functions
+Pspace Psi,PsiP; //lagrange multiplier and test function
+
+Jspace divB,magB;
+Jspace J=1.*(Th(x,y).region == Th(1,0).region);//uniform current density in wire
+
+problem infwire([Bx,By,Psi],[BBx,BBy,PsiP])= 
+int2d(Th)( (dy(Bx)-dx(By))*(dy(BBx)-dx(BBy)) ) 
++int2d(Th)(   -J*(dy(BBx)-dx(BBy)) ) 
++int2d(Th)(   -(dx(Psi)*BBx+dy(Psi)*BBy) ) //this and next implement
++int2d(Th)(   dx(PsiP)*Bx+dy(PsiP)*By  )   //Lagrange multiplier
+;
+//Note that w/o lagrange multiplier, get nonsensical B result
+//It is also necessary to have the FEspace for Psi to be P2,
+//with a P1 space it doesn't work either (this probably has
+//something to do with the LBB conditions, right?)
+//Can also get physical results with RT0Ortho and P1 for Psi
+infwire;
+divB=dx(Bx)+dy(By);
+magB=sqrt(Bx*Bx+By*By);
+plot(divB);
+//plot(Psi);
+plot(magB);
+//plot([Bx,By]);
+medit("Magnetic field in xy-plane", Th, [Bx, By]);
