@@ -6,15 +6,22 @@ load "ffrandom"
 include "MeshSurface.idp"	// Part of the standard FreeFEM++ installation
 include "../../constants.idp"
 include "../../macros/vector-analysis.idp"
+include "../../macros/geometry.idp"
 include "../../matlab/release-v2.0/demos/ffmatlib.idp"
 include "../../test/plot-boundary-labels.idp"
 
-mesh3 AllSpace = readmesh3("../meshes/slab_in_cube.mesh");
-mesh3 BowlingPin = readmesh3("../meshes/bowling-pin.mesh");
+mesh3 AllSpace = readmesh3("../../meshes/slab_in_cube.mesh");
+//mesh3 BowlingPin = readmesh3("../../meshes/bowling-pin.mesh");
 
-meshS OuterBdy = AllSpace.Gamma;
-mesh CrossSection = readmesh("../meshes/slab-in-cube-cross-section.mesh");
+//meshS OuterBdy = AllSpace.Gamma;
+//mesh CrossSection = readmesh("../../meshes/slab-in-cube-cross-section.mesh");
 //plotBdyLabels3d(AllSpace);
+mesh CrossSection = square(nx, ny, 
+				SquareParameterization(
+								-boxLength/2, boxLength/2, 
+								-boxLength/2, boxLength/2
+				)
+);
 
 // FE SPACES
 fespace Scalar1(AllSpace, P1); 
@@ -108,21 +115,13 @@ problem emptySpaceRaviartThomas([Adx, Ady, Adz], [Wdx, Wdy, Wdz]) =
 emptySpaceNedelec;
 //emptySpaceRaviartThomas;
 
-CurlVector0 [Bcx, Bcy, Bcz] = Curl3d(Ac);
-// Saving the mesh again is redundant for now, but will become important once mesh refinement is implemented
-savemesh(AllSpace, "empty-space-mesh.mesh");
-// TODO: Determine whether Nedelec elements determine the solution at the center of gravity or the vertices (presumably vertices)
-savesol("empty-space.sol", AllSpace, [Acx, Acy, Acz], [Bcx, Bcy, Bcz]);
-savesol("empty-space-applied-field.sol", AllSpace, [HXx, HXy, HXz]);
-ffSaveData3(Acx, Acy, Acz, "empty-space-vector-potential.txt");
-ffSaveData3(Bcx, Bcy, Bcz, "empty-space-magnetic-field.txt");
-ffSaveVh(AllSpace, CurlVector0, "empty-space-nedelec-fespace.txt");
-savevtk("B.vtu", AllSpace, [Bcx, Bcy, Bcz]);
-
 // OUTPUT RESULTS
-matrix Convert = interpolate(Vector2, CurlVector0);
+CurlVector0 [Bcx, Bcy, Bcz] = Curl3d(Ac);
 Vector2 [Bx, By, Bz];
+
+matrix Convert = interpolate(Vector2, CurlVector0);
 Bx[] = Convert*Bcx[];
+Ax[] = Convert*Acx[];
 
 fespace VectorProj(CrossSection, [P1, P1]); 
 VectorProj [BxMid, BzMid] = [Bx(x, 0, z), Bz(x, 0, z)];
@@ -135,3 +134,13 @@ Scalar1 Bsz = Proj*Bcx[];
 //medit("B_z", AllSpace, Bsz);
 //medit("Cross-section: y = 0", CrossSection, [BxMid, BzMid]);
 plot([BxMid, BzMid], wait=true);
+
+// Saving the mesh again is redundant for now, but will become important once mesh refinement is implemented
+savemesh(AllSpace, "empty-space-mesh.mesh");
+// TODO: Determine whether Nedelec elements determine the solution at the center of gravity or the vertices (presumably vertices)
+savesol("empty-space.sol", AllSpace, [Acx, Acy, Acz], [Bcx, Bcy, Bcz]);
+savesol("empty-space-applied-field.sol", AllSpace, [HXx, HXy, HXz]);
+ffSaveData3(Ax, Ay, Az, "empty-space-vector-potential.txt");
+ffSaveData3(Bx, By, Bz, "empty-space-magnetic-field.txt");
+ffSaveVh(AllSpace, Vector2, "empty-space-fespace.txt");
+savevtk("B.vtu", AllSpace, [Bcx, Bcy, Bcz]);

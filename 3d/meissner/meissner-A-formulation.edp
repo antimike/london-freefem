@@ -1,0 +1,48 @@
+load "msh3"
+load "tetgen"
+load "medit"
+load "iovtk"
+load "ffrandom"
+include "MeshSurface.idp"	// Part of the standard FreeFEM++ installation
+include "../../constants.idp"
+include "../../macros/vector-analysis.idp"
+include "../../matlab/release-v2.0/demos/ffmatlib.idp"
+include "../../test/plot-boundary-labels.idp"
+
+mesh3 AllSpace = readmesh3("../meshes/slab_in_cube.mesh");
+
+// FE SPACES
+fespace Scalar1(AllSpace, P1); 
+fespace Vector2(AllSpace, [P2, P2, P2]);
+fespace DivVector0(AllSpace, RT03d); 
+fespace CurlVector0(AllSpace, Edge03d); 
+
+Vector2 [Ax, Ay, Az], [Wx, Wy, Wz];		// Vector potential
+Vector2 [HXx, HXy, HXz] = [0, 0, H0];	// Applied field
+CurlVector0 [Acx, Acy, Acz], [Wcx, Wcy, Wcz];
+
+// PROBLEM: CURL-CONFORMING (NEDELEC) ELEMENTS
+// This at least runs without crashing, but the results differ depending on how the boundary conditions are set
+// UPDATE: Most of the discrepancy has been resolved, but a ~10% difference in the min/max values returned by UMFPACK remains
+problem emptySpaceNedelec([Acx, Acy, Acz], [Wcx, Wcy, Wcz]) = 
+	int3d(AllSpace)(
+		Curl3d(Wc)'*Curl3d(Ac) 
+		//+ 100*penaltyConstant*Div3d(Wc)*Div3d(Ac)
+	)
+	//+ int2d(AllSpace, LEFT, RIGHT, TOP, BOTTOM, FRONT, BACK)(
+			//[Wcx, Wcy, Wcz]'*parallelBdyComponents(HX)
+	//);
+	+ int2d(AllSpace, LEFT)(
+			//[Wcx, Wcy, Wcz]'*parallelBdyComponents(HX)
+			//Wcz
+			Wcy*H0
+	)
+	+ int2d(AllSpace, RIGHT)(
+			-Wcy*H0
+	)
+	+ int2d(AllSpace, FRONT)(
+			-Wcx*H0
+	)
+	+ int2d(AllSpace, BACK)(
+			Wcx*H0
+	);

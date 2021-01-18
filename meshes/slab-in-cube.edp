@@ -28,15 +28,20 @@ int[int] SlabN = (nRatio/scaleFactor)*[nx, ny, (1/aspectRatio)*nz];
 real [int, int] SlabBounds = (1/scaleFactor)*[Interval, Interval, (1/aspectRatio)*Interval];
 int [int, int] SlabLabels = [[SLAB, SLAB], [SLAB, SLAB], [SLAB, SLAB]];
 
-meshS SlabBdy = SurfaceHex(SlabN, SlabBounds, SlabLabels, -1);
+meshS SlabBdyNeg = SurfaceHex(SlabN, SlabBounds, SlabLabels, -1);
+meshS SlabBdyPos = SurfaceHex(SlabN, SlabBounds, SlabLabels, 1);
 
 // COMBINED MESH
 real maxvolSpace = boxLength^3/(nx*ny*nz);
 real maxvolSlab = maxvolSpace/(scaleFactor^3*aspectRatio*nRatio^3);
 real[int] regions = [0, 0, slabHeight*1.5, SPACE, maxvolSpace, 0, 0, 0, SC, maxvolSlab];
+real[int] slabregions = [0, 0, 0, SC, maxvolSlab];
 
-meshS TsTotal = BBox + SlabBdy;
+meshS TsTotal = BBox + SlabBdyNeg;
 mesh3 TvTotal = tetg(TsTotal, switch = "pqaAAYYQ", nbofregions = 2, regionlist = regions);
+mesh3 TvSlab = tetg(SlabBdyPos, switch = "pqaAAYYQ", nbofregions = 1, regionlist = slabregions);
+
+
 //TvTotal = checkmesh(TvTotal);
 TvTotal = buildBdMesh(TvTotal);
 TsTotal = TvTotal.Gamma;
@@ -45,3 +50,4 @@ TsTotal = TvTotal.Gamma;
 savemesh(TvTotal, "slab_in_cube.mesh");
 savemesh(TsTotal, "slab_in_cube_boundary.mesh");
 savemesh(CrossSection, "slab-in-cube-cross-section.mesh");
+savemesh(TvSlab, "slab.mesh");

@@ -8,7 +8,7 @@ border wire(t=0,2*pi){x=1+0.1*cos(t);y=0.1*sin(t);label=5;};
 mesh Th = buildmesh( center(10)+bottom(10)+outer(10)+top(10)+wire(30) );
 plot(Th);
 fespace Bspace(Th,RT1Ortho);
-fespace Jspace(Th,P0);
+fespace Jspace(Th,P2);
 fespace Pspace(Th,P2);
 Bspace [Bx,By],[BBx,BBy]; //mag field and test functions
 Pspace Psi,PsiP; //lagrange multiplier and test function
@@ -30,8 +30,14 @@ int2d(Th)( (dy(Bx)-dx(By))*(dy(BBx)-dx(BBy)) )
 infwire;
 divB=dx(Bx)+dy(By);
 magB=sqrt(Bx*Bx+By*By);
-plot(divB);
+//plot(divB, wait=true);
 //plot(Psi);
-plot(magB);
-//plot([Bx,By]);
-medit("Magnetic field in xy-plane", Th, [Bx, By]);
+plot(magB, [Bx, By], wait=true, nbiso=10, fill=false); 	// I've had the best luck tweaking the parameters (colors, number of isolines, etc.)
+                                                       	// manually in the plotting software rather than setting them here.
+                                                       	// Unfortunately, the .ppm dump function doesn't seem to work well, so I haven't been able to save
+                                                       	// the resulting images (yet).  When the plot appears, type "?" to pull up a list of commands to manipulate
+                                                       	// the image.
+plot([Bx,By], wait=true, nbiso=5);
+medit("Magnetic field in xy-plane", Th, [Bx, By]);     	// Same goes for medit.  In this case, pressing "h" brings up a list of commands in the terminal
+                                                       	// emulator from which medit was run.  IIRC, press "m" followed by "w" to get a colored plot
+																												// of the vector field; follow with "o" to get isolines.
