@@ -1,0 +1,91 @@
+load "msh3"
+load "tetgen"
+load "medit"
+load "iovtk"
+load "ffrandom"
+load "Element_Mixte3d"
+include "MeshSurface.idp"	// Part of the standard FreeFEM++ installation
+include "../../macros/geometry.idp"
+include "../../constants.idp"
+include "../../macros/vector-analysis.idp"
+include "../../matlab/release-v2.0/demos/ffmatlib.idp"
+include "../../test/plot-boundary-labels.idp"
+
+mesh3 AllSpace = readmesh3("../../meshes/slab_in_cube.mesh");
+mesh CrossSection = square(nx, ny, 
+				SquareParameterization(
+								-boxLength/2, boxLength/2, 
+								-boxLength/2, boxLength/2
+				)
+);
+
+// FE SPACES
+fespace Scalar0(AllSpace, P0); 
+fespace Scalar2(AllSpace, P2); 
+fespace Vector2(AllSpace, [P2, P2, P2]);
+fespace DivVector0(AllSpace, Edge13d); 
+fespace SolutionSpace(AllSpace, [Edge13d, P2]); 
+
+//fespace CurlVector0(AllSpace, Edge03d); 
+
+//DivVector0 [Bx, By, Bz], [Wx, Wy, Wz];		// Vector potential
+SolutionSpace [Bx, By, Bz, psi];
+SolutionSpace [Wx, Wy, Wz, Psi];
+Vector2 [B2x, B2y, B2z];	// For plotting
+//DivVector [HXx, HXy, HXz] = [0, 0, H0];	// Applied field
+Scalar2 psi2;		// Lagrange multiplier---for plotting
+Scalar0 inSC = region == SC;
+
+problem Meissner([Bx, By, Bz, psi], [Wx, Wy, Wz, Psi], solver=CG) = 
+				int3d(AllSpace)(
+						Curl3d(W)'*Curl3d(B)
+				)
+				+ int3d(AllSpace)(
+				    inverseLambda^2*inSC*[Wx, Wy, Wz]'*[Bx, By, Bz]
+				)
+				- int3d(AllSpace)(
+				    [Wx, Wy, Wz]'*Grad3d(psi)
+				)
+				+ int3d(AllSpace)(
+				    [Bx, By, Bz]'*Grad3d(Psi)
+				);
+
+varf London([Bx, By, Bz, psi], [Wx, Wy, Wz, Psi]) = 
+				int3d(AllSpace)(
+						Curl3d(W)'*Curl3d(B)
+				)
+				+ int3d(AllSpace)(
+				    inverseLambda^2*inSC*[Wx, Wy, Wz]'*[Bx, By, Bz]
+				)
+				- int3d(AllSpace)(
+				    [Wx, Wy, Wz]'*Grad3d(psi)
+				);
+varf Constraint([Bx, By, Bz, psi], [Wx, Wy, Wz, Psi]) =
+				int3d(AllSpace)(
+				    [Bx, By, Bz]'*Grad3d(Psi)
+				);
+varf Boundary([Bx, By, Bz, psi], [Wx, Wy, Wz, Psi]) = 
+				on(EXTERNAL, psi=1);
+
+matrix L = London(SolutionSpace, SolutionSpace);
+matrix C = Constraint(SolutionSpace, SolutionSpace);
+real[int] b = Boundary(0, SolutionSpace);
+matrix System = [[L], [C]];
+set(System, solver=CG);
+
+//SolutionSpace soln;
+[Bx[], psi] = System^-1*b;
+//[Bx[], psi] = soln;
+    
+//Meissner;
+
+//matrix Convert = interpolate(Vector2, DivVector0);
+//B2x[] = Convert*Bx[];
+
+//fespace VectorProj(CrossSection, [P1, P1]); 
+//VectorProj [BxMid, BzMid] = [B2x(x, 0, z), B2z(x, 0, z)];
+
+//// These 'medit' calls don't work---I can't get either the density plot or the (2D!) vector plot to work.
+////medit("B_z", AllSpace, Bsz);
+////medit("Cross-section: y = 0", CrossSection, [BxMid, BzMid]);
+//plot([BxMid, BzMid], wait=true);

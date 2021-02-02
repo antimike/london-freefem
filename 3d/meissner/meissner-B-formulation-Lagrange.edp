@@ -1,0 +1,106 @@
+load "msh3"
+load "tetgen"
+load "medit"
+load "iovtk"
+load "ffrandom"
+load "Element_Mixte3d"
+include "MeshSurface.idp"	// Part of the standard FreeFEM++ installation
+include "../../macros/geometry.idp"
+include "../../constants.idp"
+include "../../macros/vector-analysis.idp"
+include "../../matlab/release-v2.0/demos/ffmatlib.idp"
+include "../../test/plot-boundary-labels.idp"
+
+// For higher-order RT elements
+load "Element_Mixte";
+
+//border center(t=0,1){x=0;y=1-2*t;label=1;};
+//border bottom(t=0,1){x=2*t;y=-1;label=2;};
+//border outer(t=0,1){x=2;y=-1+2*t;label=3;};
+//border top(t=0,1){x=2-2*t;y=1;label=4;};
+//border wire(t=0,2*pi){x=0.4+0.1*cos(t);y=0.1*sin(t);label=5;};
+//mesh Th = buildmesh( center(40)+bottom(10)+outer(10)+top(10)+wire(20) );
+
+//fespace Bspace(Th,RT1Ortho);
+//fespace Jspace(Th,P0);
+//fespace Pspace(Th,P2);
+//Bspace [Bx,By],[BBx,BBy]; //mag field and test functions
+//Pspace Psi,PsiP; //lagrange multiplier and test function
+//real lambda=0.025; real lambda2=lambda*lambda;  //play with lambda !  Note wire has diameter 0.2
+//Jspace inSC=(region==0)/lambda2;  //I tested that inside the circle is region 0, while outside is region 1
+                                  ////note that the penetration depth is included here
+
+mesh3 AllSpace = readmesh3("../../meshes/slab_in_cube.mesh");
+mesh CrossSection = square(nx, ny, 
+				SquareParameterization(
+								-boxLength/2, boxLength/2, 
+								-boxLength/2, boxLength/2
+				)
+);
+
+// FE SPACES
+fespace Scalar0(AllSpace, P0); 
+fespace Scalar2(AllSpace, P1); 
+//fespace Vector2(AllSpace, [P2, P2, P2]);
+//fespace DivVector0(AllSpace, Edge13d); 
+//fespace SolutionSpace(AllSpace, [Edge13d, P2]); 
+fespace BSpace(AllSpace, Edge03d);	// Not sure if this is correct
+
+Scalar0 inSC = region == SC;
+Scalar2 psi, Psi;
+BSpace [Bx, By, Bz], [Wx, Wy, Wz];
+
+int testSC = AllSpace(0, 0, 0).region;
+
+
+// PROBLEM DEFINITION
+//problem loopwire([Bx,By,Psi],[BBx,BBy,PsiP])=
+//int2d(Th)( x*(dy(Bx)-dx(By))*(dy(BBx)-dx(BBy)) )
+//+int2d(Th)( inSC*x*(Bx*BBx+By*BBy) )     //this is all that's needed for the London equation
+//+int2d(Th)(   -x*(dx(Psi)*BBx+dy(Psi)*BBy) ) //this and next implement
+//+int2d(Th)( x*(dx(PsiP)*Bx+dy(PsiP)*By)  )   //Lagrange multiplier
+//+int1d(Th,top) ( -x*PsiP)  //This sets the normal component of B to have value 1, up, on the top
+//+int1d(Th,bottom) (x*PsiP)  //This sets the normal component of B to have value 1, up, on the bottom
+//;
+
+problem meissner([Bx, By, Bz, psi], [Wx, Wy, Wz, Psi]) = int3d(AllSpace)(
+    Curl3d(B)'*Curl3d(W)
+)
++ int3d(AllSpace)(
+    (region == testSC)*inverseLambda*[Bx, By, Bz]'*[Wx, Wy, Wz]
+)
++ int3d(AllSpace)(
+    //-Grad3d(psi)'*[Wx, Wy, Wz]
+		-(dx(psi)*Wx + dy(psi)*Wy + dz(psi)*Wz)
+)
++ int3d(AllSpace)(
+    //Grad3d(Psi)'*[Bx, By, Bz]
+		dx(Psi)*Bx + dy(Psi)*By + dz(Psi)*Bz
+)
++ int2d(AllSpace, TOP)(
+    -Psi
+)
++ int2d(AllSpace, BOTTOM)(
+    Psi
+);
+
+//loopwire;
+meissner;
+//Th = adaptmesh(Th,[Bx,By]);  //Let's get a more better mesh for a more accurate solution
+//loopwire;
+//mesh Plotmesh = square(40, 40, [2.*x, -1.+2.*y]);  //create a new mesh just for plotting purposes
+//fespace BPlotspace(Plotmesh,RT1Ortho);  //I don't know if RT1Ortho is really needed here, but why not
+//BPlotspace [Bxplot,Byplot]=[Bx,By];    //Copy field values into mesh for plotting purposes
+fespace CrossSectionPlotSpace(CrossSection, [P2, P2]); 
+fespace CrossSectionScalarSpace(CrossSection, P2); 
+
+CrossSectionPlotSpace [BxMid, ByMid] = [Bx(x, 0, z), Bz(x, 0, z)];
+CrossSectionScalarSpace inSCMid = inSC;
+//VectorProj [BxMid, BzMid] = [B2x(x, 0, z), B2z(x, 0, z)];
+
+//plot([BxMid, ByMid]);     //see it in the freefem built-in graphics
+plot(inSCMid, wait=true);
+plot(BxMid, wait=true);
+plot(ByMid, wait=true);
+medit("Cross-section", CrossSection,[BxMid, ByMid]);
+//medit("Field",Plotmesh,[Bxplot,Byplot]);  //see it in medit

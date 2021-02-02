@@ -1,0 +1,42 @@
+//problem loopwire([Bx,By,Psi],[BBx,BBy,PsiP])=
+//int2d(Th)( x*(dy(Bx)-dx(By))*(dy(BBx)-dx(BBy)) )
+//+int2d(Th)(   -x*J*(dy(BBx)-dx(BBy)) )
+//+int2d(Th)(   -x*(dx(Psi)*BBx+dy(Psi)*BBy) ) //this and next implement
+//+int2d(Th)( x*(dx(PsiP)*Bx+dy(PsiP)*By)  )   //Lagrange multiplier
+//+int1d(Th,top) ( -3.*x*PsiP)
+//+int1d(Th,bottom) (3.*x*PsiP)
+//;
+load "Element_Mixte";
+load "medit";
+border center(t=0,1){x=0;y=1-2*t;label=1;};
+border bottom(t=0,1){x=2*t;y=-1;label=2;};
+border outer(t=0,1){x=2;y=-1+2*t;label=3;};
+border top(t=0,1){x=2-2*t;y=1;label=4;};
+border wire(t=0,2*pi){x=0.4+0.1*cos(t);y=0.1*sin(t);label=5;};
+mesh Th = buildmesh( center(40)+bottom(10)+outer(10)+top(10)+wire(20) );
+fespace Bspace(Th,RT1Ortho);
+fespace Jspace(Th,P0);
+fespace Pspace(Th,P2);
+Bspace [Bx,By],[BBx,BBy]; //mag field and test functions
+Pspace Psi,PsiP; //lagrange multiplier and test function
+real lambda=0.025; real lambda2=lambda*lambda;  //play with lambda !  Note wire has diameter 0.2
+Jspace inSC=(region==0)/lambda2;  //I tested that inside the circle is region 0, while outside is region 1
+                                  //note that the penetration depth is included here
+problem loopwire([Bx,By,Psi],[BBx,BBy,PsiP])=
+int2d(Th)( x*(dy(Bx)-dx(By))*(dy(BBx)-dx(BBy)) )
++int2d(Th)( inSC*x*(Bx*BBx+By*BBy) )     //this is all that's needed for the London equation
++int2d(Th)(   -x*(dx(Psi)*BBx+dy(Psi)*BBy) ) //this and next implement
++int2d(Th)( x*(dx(PsiP)*Bx+dy(PsiP)*By)  )   //Lagrange multiplier
++int1d(Th,top) ( -x*PsiP)  //This sets the normal component of B to have value 1, up, on the top
++int1d(Th,bottom) (x*PsiP)  //This sets the normal component of B to have value 1, up, on the bottom
+;
+loopwire;
+Th = adaptmesh(Th,[Bx,By]);  //Let's get a more better mesh for a more accurate solution
+loopwire;
+mesh Plotmesh = square(40, 40, [2.*x, -1.+2.*y]);  //create a new mesh just for plotting purposes
+fespace BPlotspace(Plotmesh,RT1Ortho);  //I don't know if RT1Ortho is really needed here, but why not
+BPlotspace [Bxplot,Byplot]=[Bx,By];    //Copy field values into mesh for plotting purposes
+plot([Bxplot,Byplot]);     //see it in the freefem built-in graphics
+medit("Field",Plotmesh,[Bxplot,Byplot]);  //see it in medit
+
+
